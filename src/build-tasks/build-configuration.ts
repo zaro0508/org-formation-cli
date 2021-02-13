@@ -6,6 +6,7 @@ import { OrgFormationError } from '../org-formation-error';
 import { BuildTaskProvider } from './build-task-provider';
 import { IUpdateOrganizationTaskConfiguration } from './tasks/organization-task';
 import { IUpdateStacksBuildTask } from './tasks/update-stacks-task';
+import { IUpdateNunjucksBuildTask } from './tasks/update-nunjucks-task';
 import { IPerformTasksCommandArgs } from '~commands/index';
 import { CfnExpressionResolver } from '~core/cfn-expression-resolver';
 import { CfnMappingsSection } from '~core/cfn-functions/cfn-find-in-map';
@@ -34,6 +35,8 @@ export class BuildConfiguration {
         }
 
         this.validateTasksFile(result);
+        this.validateNunjucksTasksFile(result);
+        this.validateOrgTasksFile(result);
 
         return result;
     }
@@ -59,6 +62,8 @@ export class BuildConfiguration {
         }
 
         this.validateTasksFile(result);
+        this.validateNunjucksTasksFile(result);
+        this.validateOrgTasksFile(result);
 
         return result;
     }
@@ -67,7 +72,15 @@ export class BuildConfiguration {
         const updateStackTasks = BuildTaskProvider.recursivelyFilter(tasks, x => x.type === 'update-stacks') as IUpdateStacksBuildTask[];
         const stackNames = updateStackTasks.map(x => x.StackName);
         this.throwForDuplicateVal(stackNames, x => new OrgFormationError(`found more than 1 update-stacks with stackName ${x}.`));
+    }
 
+    private validateNunjucksTasksFile(tasks: IBuildTask[]): void {
+        const updateStackTasks = BuildTaskProvider.recursivelyFilter(tasks, x => x.type === 'update-nunjucks') as IUpdateNunjucksBuildTask[];
+        const stackNames = updateStackTasks.map(x => x.StackName);
+        this.throwForDuplicateVal(stackNames, x => new OrgFormationError(`found more than 1 update-nunjucks with stackName ${x}.`));
+    }
+
+    private validateOrgTasksFile(tasks: IBuildTask[]): void {
         const updateOrgTasks = BuildTaskProvider.recursivelyFilter(tasks, x => x.type === 'update-organization');
         if (updateOrgTasks.length > 1) {
             throw new OrgFormationError('multiple update-organization tasks found');

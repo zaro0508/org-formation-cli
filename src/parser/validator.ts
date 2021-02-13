@@ -3,6 +3,7 @@ import { OrgFormationError } from '../org-formation-error';
 import { ResourceUtil } from '../util/resource-util';
 import { IOrganizationBinding, IResourceRef, ITemplate } from './parser';
 import { IUpdateStackTaskConfiguration } from '~build-tasks/tasks/update-stacks-task';
+import { IUpdateNunjuckTaskConfiguration } from '~build-tasks/tasks/update-nunjucks-task';
 import { IRCObject } from '~commands/base-command';
 import { ICfnSubExpression } from '~core/cfn-expression';
 
@@ -36,6 +37,33 @@ export class Validator {
     }
 
     public static ValidateUpdateStacksTask(config: IUpdateStackTaskConfiguration, taskName: string): void {
+        if (config === undefined) { return; }
+
+        if (config.Template === undefined) {
+            throw new OrgFormationError(`Required attribute Template missing for task ${taskName}`);
+        }
+        if (config.StackName === undefined) {
+            throw new OrgFormationError(`Required attribute StackName missing for task ${taskName}`);
+        }
+        if (config.OrganizationBinding !== undefined) {
+            Validator.ValidateOrganizationBinding(config.OrganizationBinding, `task ${taskName}`);
+        }
+        if (config.DefaultOrganizationBinding !== undefined) {
+            Validator.ValidateOrganizationBinding(config.DefaultOrganizationBinding, `task ${taskName}`);
+        }
+        for (const bindingName in config.OrganizationBindings) {
+            const binding: IOrganizationBinding = config.OrganizationBindings[bindingName];
+            Validator.ValidateOrganizationBinding(binding, `binding ${bindingName} of task ${taskName}`);
+        }
+
+        Validator.ThrowForUnknownAttribute(config, `task ${taskName}`,
+            'Type', 'DependsOn', 'Skip', 'Template', 'StackName', 'StackDescription', 'Parameters', 'StackPolicy',
+            'DeletionProtection', 'OrganizationFile', 'OrganizationBinding', 'OrganizationBindingRegion', 'DefaultOrganizationBinding', 'DefaultOrganizationBindingRegion',
+            'OrganizationBindings', 'TerminationProtection', 'UpdateProtection', 'CloudFormationRoleName', 'TaskRoleName',
+            'LogicalName', 'FilePath', 'MaxConcurrentStacks', 'FailedStackTolerance', 'LogVerbose', 'ForceDeploy', 'TaskViaRoleArn');
+    }
+
+    public static ValidateUpdateNunjucksTask(config: IUpdateNunjuckTaskConfiguration, taskName: string): void {
         if (config === undefined) { return; }
 
         if (config.Template === undefined) {
