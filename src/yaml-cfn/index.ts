@@ -13,7 +13,19 @@
  */
 'use strict';
 
+import path from 'path';
 import yaml  from 'js-yaml';
+import nunjucks from 'nunjucks';
+
+nunjucks.installJinjaCompat();
+nunjucks.configure(
+    '.',
+    {
+        autoescape: true,
+        trimBlocks: true,
+        lstripBlocks: true,
+        throwOnUndefined: true,
+    });
 
 /**
  * Split a string on the given separator just once, returning an array of two parts, or null.
@@ -108,8 +120,23 @@ const cfnSchema = yaml.DEFAULT_SCHEMA.extend(allTagTypes);
 
 export const schema = cfnSchema;
 
-export const yamlParse = (input: string): any => {
-  return yaml.load(input, { schema: cfnSchema });
+export const yamlParse = (input: string, filename: string): any => {
+  let nYaml;
+  if (path.extname(filename) === '.nj') {
+    const Data = {
+        names: ['jason', 'marty'],
+        user: {
+            name: 'Kurara',
+            email: 'kurara@xx.email',
+        },
+    };
+    const res = nunjucks.renderString(input, {Data});
+    nYaml = yaml.load(res);
+  } else {
+    nYaml = yaml.load(input, { schema: cfnSchema });
+  }
+
+  return nYaml;
 };
 
 

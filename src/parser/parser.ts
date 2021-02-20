@@ -122,7 +122,7 @@ export class TemplateRoot {
         delete overrides.OrganizationFile;
         delete overrides.OrganizationFileContents;
 
-        const obj = yamlParseContentWithIncludes(normalizedContentsForParser, dirname) as ITemplate;
+        const obj = yamlParseContentWithIncludes(normalizedContentsForParser, dirname, filename) as ITemplate;
         if (includedOrganization && !obj.Organization) {
             obj.Organization = includedOrganization;
         }
@@ -158,7 +158,7 @@ export class TemplateRoot {
     }
 
     private static getIncludedOrganizationFromContents(contents: string): IOrganization {
-        const includedTemplate = yamlParse(contents) as ITemplate;
+        const includedTemplate = yamlParse(contents,'') as ITemplate;
         if (!includedTemplate.Organization) {
             throw new OrgFormationError('Organization include file does not contain top level Organization.');
         }
