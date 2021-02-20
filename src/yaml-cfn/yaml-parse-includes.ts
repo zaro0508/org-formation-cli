@@ -3,7 +3,7 @@ import path from 'path';
 import { yamlParse } from '.';
 
 const include = /!Include\s+('|")?([^'"\s]*)('|")?/g;
-export const yamlParseContentWithIncludes = (contents: string, directory: string): any => {
+export const yamlParseContentWithIncludes = (contents: string, directory: string, filename: string): any => {
     const replacedContents = contents.replace(include, (_, __, includedRelativeFilePath) => {
 
         const resolvedFilePath = path.resolve(directory, includedRelativeFilePath);
@@ -11,7 +11,7 @@ export const yamlParseContentWithIncludes = (contents: string, directory: string
         return JSON.stringify(included);
     });
 
-    const parsed = yamlParse(replacedContents);
+    const parsed = yamlParse(replacedContents, filename);
     return parsed;
 };
 
@@ -19,5 +19,6 @@ export const yamlParseWithIncludes = (filePath: string): any => {
     const buffer = readFileSync(filePath);
     const contents = buffer.toString('utf-8');
     const dir = path.dirname(filePath);
-    return yamlParseContentWithIncludes(contents, dir);
+    const filename = path.basename(filePath);
+    return yamlParseContentWithIncludes(contents, dir, filename);
 };
