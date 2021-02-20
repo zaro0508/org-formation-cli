@@ -24,6 +24,7 @@ export class ValidateStacksCommand extends BaseCliCommand<IUpdateStacksCommandAr
 
     public addOptions(command: Command): void {
         command.option('--parameters [parameters]', 'parameter values passed to CloudFormation when executing stacks');
+        command.option('--data [data]', 'parameter values passed to CloudFormation when executing stacks');
         command.option('--organization-file [organization-file]', 'organization file used for organization bindings');
         command.option('--stack-name <stack-name>', 'name of the stack that will be used in CloudFormation', 'validation');
         super.addOptions(command);
@@ -47,10 +48,11 @@ export class ValidateStacksCommand extends BaseCliCommand<IUpdateStacksCommandAr
         GlobalState.Init(state, template);
         ConsoleUtil.state = state;
         const parameters = this.parseCfnParameters(command.parameters);
+        const data = this.parseCfnData(command.data);
         const stackPolicy = command.stackPolicy;
         const cloudFormationRoleName = command.cloudFormationRoleName;
         const taskViaRoleArn = command.taskViaRoleArn;
-        const cfnBinder = new CloudFormationBinder(command.stackName, template, state, parameters, false, command.verbose === true, command.taskRoleName, false, stackPolicy, cloudFormationRoleName, undefined, taskViaRoleArn);
+        const cfnBinder = new CloudFormationBinder(command.stackName, template, state, parameters, data,false, command.verbose === true, command.taskRoleName, false, stackPolicy, cloudFormationRoleName, undefined, taskViaRoleArn);
 
         const bindings = await cfnBinder.enumBindings();
 

@@ -43,7 +43,7 @@ export class DeleteStacksCommand extends BaseCliCommand<IDeleteStackCommandArgs>
 
         GlobalState.Init(state, emptyTemplate);
 
-        const cfnBinder = new CloudFormationBinder(stackName, emptyTemplate, state, {}, false, command.verbose === true);
+        const cfnBinder = new CloudFormationBinder(stackName, emptyTemplate, state, {}, {},false, command.verbose === true);
 
         const cfnTasks = await cfnBinder.enumTasks();
         if (cfnTasks.length === 0) {

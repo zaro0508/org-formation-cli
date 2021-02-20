@@ -4,6 +4,7 @@ import { OrgFormationError } from '../org-formation-error';
 import { CfnTaskProvider, ICfnTask } from './cfn-task-provider';
 import { CfnTemplate } from './cfn-template';
 import { CfnParameters } from './cfn-parameters';
+import { CfnData } from './cfn-data';
 import { IResourceTarget } from '~parser/model';
 import { TemplateRoot } from '~parser/parser';
 import { ICfnTarget, PersistedState } from '~state/persisted-state';
@@ -17,6 +18,7 @@ export class CloudFormationBinder {
                 private readonly template: TemplateRoot,
                 private readonly state: PersistedState,
                 private readonly parameters: Record<string, string | ICfnCopyValue> = {},
+                private readonly data: Record<string, string | ICfnCopyValue> = {},
                 private readonly forceDeploy: boolean = false,
                 private readonly logVerbose: boolean = false,
                 private readonly taskRoleName: string = undefined,
@@ -60,6 +62,7 @@ export class CloudFormationBinder {
             const stored = this.state.getTarget(stackName, accountId, region);
             const cfnTemplate = new CfnTemplate(target, this.template, this.state);
             const resolvedParameters = await CfnParameters.resolveParameters(this.parameters, expressionResolver);
+            const resolvedData = await CfnData.resolveData(this.data, expressionResolver);
             const template = await cfnTemplate.createTemplateBodyAndResolve(expressionResolver);
 
             let foundResolveExpression = (template.match(/{{resolve:/) !== null);
@@ -71,7 +74,7 @@ export class CloudFormationBinder {
                 foundResolveExpression = value.startsWith('{{resolve:');
             }
 
-            const invocationHash = this.calculateHash(template, resolvedParameters);
+            const invocationHash = this.calculateHash(template, resolvedParameters, resolvedData);
 
             const binding: ICfnBinding = {
                 ...key,
@@ -80,6 +83,8 @@ export class CloudFormationBinder {
                 target,
                 parameters: this.parameters,
                 resolvedParameters,
+                data: this.data,
+                resolvedData,
                 templateHash: invocationHash,
                 terminationProtection: this.terminationProtection,
                 stackPolicy: this.stackPolicy,
@@ -196,7 +201,7 @@ export class CloudFormationBinder {
         return result;
     }
 
-    private calculateHash(template: string, parameters: Record<string, string>): string {
+    private calculateHash(template: string, parameters: Record<string, string>, data: Record<string, string>): string {
 
         const invocation: any = {
             stackName: this.stackName,
@@ -206,6 +211,7 @@ export class CloudFormationBinder {
             taskRoleName: this.taskRoleName,
             taskViaRoleName: this.taskViaRoleArn,
             parameters,
+            data,
             templateHash: md5(template),
         };
 
@@ -230,6 +236,8 @@ export interface ICfnBinding {
     regionDependencies: string[];
     parameters?: Record<string, ICfnExpression>;
     resolvedParameters?: Record<string, string>;
+    data?: Record<string, ICfnExpression>;
+    resolvedData?: Record<string, string>;
     terminationProtection?: boolean;
     customRoleName?: string;
     customViaRoleArn?: string;

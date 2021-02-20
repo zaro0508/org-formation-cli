@@ -82,6 +82,7 @@ export interface ITemplateOverrides {
     DefaultOrganizationBinding?: IOrganizationBinding;
     OrganizationBindings?: Record<string, IOrganizationBinding>;
     ParameterValues?: Record<string, any>;
+    DataValues?: Record<string, any>;
 }
 
 export class TemplateRoot {
@@ -122,7 +123,7 @@ export class TemplateRoot {
         delete overrides.OrganizationFile;
         delete overrides.OrganizationFileContents;
 
-        const obj = yamlParseContentWithIncludes(normalizedContentsForParser, dirname) as ITemplate;
+        const obj = yamlParseContentWithIncludes(normalizedContentsForParser, dirname, filename, overrides) as ITemplate;
         if (includedOrganization && !obj.Organization) {
             obj.Organization = includedOrganization;
         }

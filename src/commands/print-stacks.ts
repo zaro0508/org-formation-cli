@@ -26,6 +26,7 @@ export class PrintStacksCommand extends BaseCliCommand<IPrintStacksCommandArgs> 
 
     public addOptions(command: Command): void {
         command.option('--parameters [parameters]', 'parameter values passed to CloudFormation when executing stacks');
+        command.option('--data [data]', 'parameter values passed to CloudFormation when executing stacks');
         command.option('--stack-name <stack-name>', 'name of the stack that will be used in CloudFormation', 'print');
         command.option('--organization-file [organization-file]', 'organization file used for organization bindings');
         command.option('--output-path [output-path]', 'path, within the root directory, used to store printed templates', undefined);
@@ -44,7 +45,8 @@ export class PrintStacksCommand extends BaseCliCommand<IPrintStacksCommandArgs> 
         const state = await this.getState(command);
         GlobalState.Init(state, template);
         const parameters = this.parseCfnParameters(command.parameters);
-        const cfnBinder = new CloudFormationBinder(command.stackName, template, state, parameters);
+        const data = this.parseCfnData(command.data);
+        const cfnBinder = new CloudFormationBinder(command.stackName, template, state, parameters, data);
 
         const bindings = await cfnBinder.enumBindings();
         for (const binding of bindings) {
@@ -111,5 +113,6 @@ export interface IPrintStacksCommandArgs extends ICommandArgs {
     outputCrossAccountExports?: boolean;
     printParameters?: boolean;
     parameters?: string | {};
+    data?: string | {};
     output?: 'json' | 'yaml';
 }
