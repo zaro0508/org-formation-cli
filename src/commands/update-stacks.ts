@@ -45,6 +45,12 @@ export class UpdateStacksCommand extends BaseCliCommand<IUpdateStacksCommandArgs
                 templateOverrides.ParameterValues[key] = val;
             }
         }
+        if (command.data) {
+            templateOverrides.DataValues = {};
+            for(const [key, val] of Object.entries(command.data)) {
+                templateOverrides.DataValues[key] = val;
+            }
+        }
         const template = await TemplateRoot.create(templateFile, templateOverrides, command.organizationFileHash);
         return template;
     }
@@ -57,6 +63,7 @@ export class UpdateStacksCommand extends BaseCliCommand<IUpdateStacksCommandArgs
         command.option('--stack-name <stack-name>', 'name of the stack that will be used in CloudFormation');
         command.option('--stack-description [description]', 'description of the stack that will be displayed CloudFormation');
         command.option('--parameters [parameters]', 'parameter values passed to CloudFormation when executing stacks');
+        command.option('--data [data]', 'data values passed to CloudFormation when executing stacks');
         command.option('--termination-protection', 'value that indicates whether stack must have deletion protection');
         command.option('--organization-file [organization-file]', 'organization file used for organization bindings');
         command.option('--update-protection', 'value that indicates whether stack must have a stack policy that prevents updates');
@@ -124,6 +131,7 @@ export class UpdateStacksCommand extends BaseCliCommand<IUpdateStacksCommandArgs
         }
         const template = await UpdateStacksCommand.createTemplateUsingOverrides(command, templateFile);
         const parameters = this.parseCfnParameters(command.parameters);
+        const data = this.parseCfnData(command.data);
         const state = await this.getState(command);
         GlobalState.Init(state, template);
 
@@ -154,6 +162,7 @@ export interface IUpdateStacksCommandArgs extends ICommandArgs {
     stackName: string;
     stackDescription?: string;
     parameters?: string | {};
+    data?: string | {};
     terminationProtection?: boolean;
     updateProtection?: boolean;
     forceDeploy?: boolean;

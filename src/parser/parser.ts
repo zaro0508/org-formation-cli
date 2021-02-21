@@ -82,6 +82,7 @@ export interface ITemplateOverrides {
     DefaultOrganizationBinding?: IOrganizationBinding;
     OrganizationBindings?: Record<string, IOrganizationBinding>;
     ParameterValues?: Record<string, any>;
+    DataValues?: Record<string, any>;
 }
 
 export class TemplateRoot {
@@ -117,7 +118,7 @@ export class TemplateRoot {
         } else if (overrides.OrganizationFileContents) {
             includedOrganization = TemplateRoot.getIncludedOrganizationFromContents(overrides.OrganizationFileContents);
         } else if (overrides.OrganizationFile) {
-            includedOrganization = TemplateRoot.getIncludedOrganization(overrides.OrganizationFile, templateImportContentMd5);
+            includedOrganization = TemplateRoot.getIncludedOrganization(ov errides.OrganizationFile, templateImportContentMd5);
         }
         delete overrides.OrganizationFile;
         delete overrides.OrganizationFileContents;

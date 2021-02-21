@@ -19,6 +19,7 @@ import { S3StorageProvider } from '~state/storage-provider';
 import { DefaultTemplate, DefaultTemplateWriter } from '~writer/default-template-writer';
 import { CfnParameters } from '~core/cfn-parameters';
 import { Validator } from '~parser/validator';
+import {CfnData} from "~core/cfn-data";
 
 const DEFAULT_STATE_OBJECT = 'state.json';
 
@@ -217,6 +218,18 @@ export abstract class BaseCliCommand<T extends ICommandArgs> {
         }
         if (typeof commandParameters === 'string') {
             return CfnParameters.ParseParameterValues(commandParameters);
+        }
+
+        return {};
+    }
+
+    protected parseCfnData(commandData?: string | undefined | {}): Record<string, string>  {
+
+        if (typeof commandData === 'object') {
+            return commandData;
+        }
+        if (typeof commandData === 'string') {
+            return CfnData.ParseDataValues(commandData);
         }
 
         return {};
