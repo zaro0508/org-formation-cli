@@ -125,9 +125,9 @@ export const yamlParse = (input: string): any => {
 };
 
 export const nunjucksParse = (input: string, filename: string, data: any): any => {
-  const njDataObj: Dictionary<string>={};
-  njDataObj.Data = data;
-  const rendered = nunjucks.renderString(input, njDataObj);
+  const njData: Dictionary<string>={};
+  njData.Data = data;
+  const rendered = nunjucks.renderString(input, njData);
   return yaml.load(rendered);
 };
 
