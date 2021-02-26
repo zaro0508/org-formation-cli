@@ -13,7 +13,6 @@
  */
 'use strict';
 
-import path from 'path';
 import yaml  from 'js-yaml';
 import nunjucks from 'nunjucks';
 
@@ -121,15 +120,12 @@ const cfnSchema = yaml.DEFAULT_SCHEMA.extend(allTagTypes);
 export const schema = cfnSchema;
 
 export const yamlParse = (input: string): any => {
-    return yaml.load(input, { schema: cfnSchema });
+  return yaml.load(input, { schema: cfnSchema });
 };
 
-export const njParse = (input: string, filename: string): any => {
-  const Data = {
-      names: ['jason', 'marty'],
-  };
-  const res = nunjucks.renderString(input, {Data});
-  return yaml.load(res);
+export const njParse = (input: string, filename: string, Data: string): any => {
+  const rendered = nunjucks.renderString(input, {Data});
+  return yaml.load(rendered);
 };
 
 export const yamlDump = (input: any): string => {
