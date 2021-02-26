@@ -13,7 +13,7 @@ import { OrganizationalUnitResource } from './model/organizational-unit-resource
 import { yamlParse } from '~yaml-cfn/index';
 import { FileUtil } from '~util/file-util';
 import { yamlParseContentWithIncludes } from '~yaml-cfn/yaml-parse-includes';
-import { njParseContentWithIncludes } from '~yaml-cfn/nj-parse-includes';
+import { nunjucksParseContentWithIncludes } from '~yaml-cfn/nunjucks-parse-includes';
 
 const NUNJUCKS_FILE_EXTENSION = '.nj';
 type TemplateVersion = '2010-09-09-OC' | '2010-09-09';
@@ -129,7 +129,7 @@ export class TemplateRoot {
         if (Path.extname(filename) === NUNJUCKS_FILE_EXTENSION) {
             const dataValues = overrides.DataValues;
             delete overrides.DataValues;
-            obj = njParseContentWithIncludes(normalizedContentsForParser, dirname, filename, dataValues) as ITemplate;
+            obj = nunjucksParseContentWithIncludes(normalizedContentsForParser, dirname, filename, dataValues) as ITemplate;
         } else {
             obj = yamlParseContentWithIncludes(normalizedContentsForParser, dirname) as ITemplate;
         }

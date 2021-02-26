@@ -123,7 +123,7 @@ export const yamlParse = (input: string): any => {
   return yaml.load(input, { schema: cfnSchema });
 };
 
-export const njParse = (input: string, filename: string, Data: string): any => {
+export const nunjucksParse = (input: string, filename: string, Data: string): any => {
   const rendered = nunjucks.renderString(input, {Data});
   return yaml.load(rendered);
 };
