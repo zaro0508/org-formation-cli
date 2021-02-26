@@ -15,6 +15,7 @@
 
 import yaml  from 'js-yaml';
 import nunjucks from 'nunjucks';
+import { Dictionary } from 'lodash';
 
 nunjucks.installJinjaCompat();
 nunjucks.configure(
@@ -123,8 +124,10 @@ export const yamlParse = (input: string): any => {
   return yaml.load(input, { schema: cfnSchema });
 };
 
-export const nunjucksParse = (input: string, filename: string, Data: string): any => {
-  const rendered = nunjucks.renderString(input, {Data});
+export const nunjucksParse = (input: string, filename: string, data: any): any => {
+  const njDataObj: Dictionary<string>={};
+  njDataObj.Data = data;
+  const rendered = nunjucks.renderString(input, njDataObj);
   return yaml.load(rendered);
 };
 
