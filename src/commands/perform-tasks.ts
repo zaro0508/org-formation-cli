@@ -88,7 +88,7 @@ export class PerformTasksCommand extends BaseCliCommand<IPerformTasksCommandArgs
         if (FileUtil.IsRemoteFile(command.organizationFile)) {return;}
         if (command.organizationFileHash !== state.getTemplateHashLastPublished()) {
             const contents = readFileSync(command.organizationFile).toString();
-            const object = yamlParse(contents,null);
+            const object = yamlParse(contents);
             const objectKey = command.organizationObject || DEFAULT_ORGANIZATION_OBJECT;
             const stateBucketName = await BaseCliCommand.GetStateBucketName(command.stateBucketName);
             const storageProvider = await S3StorageProvider.Create(stateBucketName, objectKey);

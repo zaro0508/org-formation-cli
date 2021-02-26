@@ -158,7 +158,7 @@ export class TemplateRoot {
     }
 
     private static getIncludedOrganizationFromContents(contents: string): IOrganization {
-        const includedTemplate = yamlParse(contents,'') as ITemplate;
+        const includedTemplate = yamlParse(contents) as ITemplate;
         if (!includedTemplate.Organization) {
             throw new OrgFormationError('Organization include file does not contain top level Organization.');
         }

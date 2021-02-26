@@ -120,25 +120,17 @@ const cfnSchema = yaml.DEFAULT_SCHEMA.extend(allTagTypes);
 
 export const schema = cfnSchema;
 
-export const yamlParse = (input: string, filename: string): any => {
-  let nYaml;
-  if (path.extname(filename) === '.nj') {
-    const Data = {
-        names: ['jason', 'marty'],
-        user: {
-            name: 'Kurara',
-            email: 'kurara@xx.email',
-        },
-    };
-    const res = nunjucks.renderString(input, {Data});
-    nYaml = yaml.load(res);
-  } else {
-    nYaml = yaml.load(input, { schema: cfnSchema });
-  }
-
-  return nYaml;
+export const yamlParse = (input: string): any => {
+    return yaml.load(input, { schema: cfnSchema });
 };
 
+export const njParse = (input: string, filename: string): any => {
+  const Data = {
+      names: ['jason', 'marty'],
+  };
+  const res = nunjucks.renderString(input, {Data});
+  return yaml.load(res);
+};
 
 export const yamlDump = (input: any): string => {
   return yaml.dump(input, { schema: cfnSchema });

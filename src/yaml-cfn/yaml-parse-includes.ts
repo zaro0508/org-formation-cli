@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import path from 'path';
-import { yamlParse } from '.';
+import { njParse, yamlParse } from '.';
 
 const include = /!Include\s+('|")?([^'"\s]*)('|")?/g;
 export const yamlParseContentWithIncludes = (contents: string, directory: string, filename: string): any => {
@@ -11,7 +11,12 @@ export const yamlParseContentWithIncludes = (contents: string, directory: string
         return JSON.stringify(included);
     });
 
-    const parsed = yamlParse(replacedContents, filename);
+    let parsed;
+    if (path.extname(filename) === '.nj') {
+        parsed = njParse(replacedContents, filename);
+    } else {
+        parsed = yamlParse(replacedContents);
+    }
     return parsed;
 };
 
