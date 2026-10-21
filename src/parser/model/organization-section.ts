@@ -8,6 +8,7 @@ import { OrganizationalUnitResource } from './organizational-unit-resource';
 import { PasswordPolicyResource } from './password-policy-resource';
 import { Resource } from './resource';
 import { OrgResourceTypes } from './resource-types';
+import { ResourceControlPolicyResource } from './resource-control-policy-resource';
 import { ServiceControlPolicyResource } from './service-control-policy-resource';
 
 export class OrganizationSection {
@@ -19,6 +20,7 @@ export class OrganizationSection {
     public readonly accounts: AccountResource[] = [];
     public readonly organizationalUnits: OrganizationalUnitResource[] = [];
     public readonly serviceControlPolicies: ServiceControlPolicyResource[] = [];
+    public readonly resourceControlPolicies: ResourceControlPolicyResource[] = [];
     public readonly passwordPolicies: PasswordPolicyResource[] = [];
 
     constructor(root: TemplateRoot, contents: IOrganization) {
@@ -51,6 +53,8 @@ export class OrganizationSection {
                 this.organizationalUnits.push(resource);
             } else if (resource instanceof ServiceControlPolicyResource) {
                 this.serviceControlPolicies.push(resource);
+            } else if (resource instanceof ResourceControlPolicyResource) {
+                this.resourceControlPolicies.push(resource);
             } else if (resource instanceof PasswordPolicyResource) {
                 this.passwordPolicies.push(resource);
             }
@@ -72,11 +76,13 @@ export class OrganizationSection {
             }
         }
         const serviceControlPolicies = this.serviceControlPolicies.map(policy => policy.policyName);
+        const resourceControlPolicies = this.resourceControlPolicies.map(policy => policy.policyName);
 
         this.warnForDuplicateVal(accountNames, (duplicate: string) => `Multiple accounts found with AccountName ${duplicate}. This will not be a problem, but perhaps confusing?`);
         this.throwForDuplicateVal(accountIds, (duplicate: string) => new Error(`multiple accounts found with AccountId ${duplicate}`));
         this.throwForDuplicateVal(rootEmails, (duplicate: string) => new Error(`multiple accounts found with RootEmail ${duplicate}`));
         this.throwForDuplicateVal(serviceControlPolicies, (duplicate: string) => new Error(`multiple service control policies found with policyName ${duplicate}`));
+        this.throwForDuplicateVal(resourceControlPolicies, (duplicate: string) => new Error(`multiple resource control policies found with policyName ${duplicate}`));
     }
 
     public resolveRefs(): void {
@@ -116,6 +122,9 @@ export class OrganizationSection {
 
             case OrgResourceTypes.ServiceControlPolicy:
                 return new ServiceControlPolicyResource(this.root, id, resource);
+
+            case OrgResourceTypes.ResourceControlPolicy:
+                return new ResourceControlPolicyResource(this.root, id, resource);
 
             case OrgResourceTypes.PasswordPolicy:
                 return new PasswordPolicyResource(this.root, id, resource);

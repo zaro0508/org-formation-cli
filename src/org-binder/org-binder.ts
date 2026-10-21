@@ -7,6 +7,7 @@ import {
     OrganizationalUnitResource,
     OrgResourceTypes,
     Resource,
+    ResourceControlPolicyResource,
     ServiceControlPolicyResource,
 } from '~parser/model';
 import { TemplateRoot } from '~parser/parser';
@@ -37,12 +38,14 @@ export class OrganizationBinder {
 
     public getOrganizationBinding(): OrganizationBinding {
         const policies = Array.from(ServiceControlPolicyBinding.enumerateServiceControlBindings(this.template, this.state));
+        const resourceControlPolicies = Array.from(ResourceControlPolicyBinding.enumerateResourceControlBindings(this.template, this.state));
         const organizationalUnits = Array.from(OrganizationalUnitBinding.enumerateOrganizationalUnitBindings(this.template, this.state));
         const accounts = Array.from(AccountBinding.enumerateAccountBindings(this.template, this.state));
         const masterAccount = Binding.getBindingOnType<MasterAccountResource>(this.state, this.template.organizationSection.masterAccount);
         const organizationRoot = Binding.getBindingOnType<OrganizationRootResource>(this.state, this.template.organizationSection.organizationRoot);
         return {
             policies,
+            resourceControlPolicies,
             organizationalUnits,
             accounts,
             masterAccount,
@@ -67,6 +70,22 @@ export class OrganizationBinder {
                     break;
                 case 'Delete':
                     const t3 = this.taskProvider.createPolicyDeleteTasks(boundPolicy.state, mirror);
+                    tasks.push(...t3);
+                    break;
+            }
+        }
+        for (const boundPolicy of org.resourceControlPolicies) {
+            switch (boundPolicy.action) {
+                case 'Create':
+                    const t = this.taskProvider.createResourceControlPolicyCreateTasks(boundPolicy.template, boundPolicy.templateHash, mirror);
+                    tasks.push(...t);
+                    break;
+                case 'Update':
+                    const t2 = this.taskProvider.createResourceControlPolicyUpdateTasks(boundPolicy.template, boundPolicy.state, boundPolicy.templateHash, mirror);
+                    tasks.push(...t2);
+                    break;
+                case 'Delete':
+                    const t3 = this.taskProvider.createResourceControlPolicyDeleteTasks(boundPolicy.state, mirror);
                     tasks.push(...t3);
                     break;
             }
@@ -152,6 +171,7 @@ export class BindingRoot {
 
 export class OrganizationBinding {
     public policies: ServiceControlPolicyBinding[];
+    public resourceControlPolicies: ResourceControlPolicyBinding[];
     public organizationalUnits: OrganizationalUnitBinding[];
     public accounts: AccountBinding[];
     public masterAccount: Binding<MasterAccountResource>;
@@ -270,6 +290,17 @@ class ServiceControlPolicyBinding extends Binding<ServiceControlPolicyResource> 
         return Binding.enumerateBindings<ServiceControlPolicyResource>(
             OrgResourceTypes.ServiceControlPolicy,
             template.organizationSection.serviceControlPolicies,
+            state);
+
+    }
+}
+
+class ResourceControlPolicyBinding extends Binding<ResourceControlPolicyResource> {
+
+    public static enumerateResourceControlBindings(template: TemplateRoot, state: PersistedState): ResourceControlPolicyBinding[] {
+        return Binding.enumerateBindings<ResourceControlPolicyResource>(
+            OrgResourceTypes.ResourceControlPolicy,
+            template.organizationSection.resourceControlPolicies,
             state);
 
     }

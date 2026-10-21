@@ -3,6 +3,7 @@ import { OrgFormationError } from '../../org-formation-error';
 import { IResource, IResourceRef, TemplateRoot } from '../parser';
 import { PasswordPolicyResource } from './password-policy-resource';
 import { Reference, Resource } from './resource';
+import { ResourceControlPolicyResource } from './resource-control-policy-resource';
 import { ServiceControlPolicyResource } from './service-control-policy-resource';
 import { AwsUtil, DEFAULT_ROLE_FOR_CROSS_ACCOUNT_ACCESS } from '~util/aws-util';
 import { ConsoleUtil } from '~util/console-util';
@@ -12,6 +13,7 @@ export interface IAccountProperties {
     AccountName: string;
     AccountId?: string;
     ServiceControlPolicies?: IResourceRef | IResourceRef[];
+    ResourceControlPolicies?: IResourceRef | IResourceRef[];
     PasswordPolicy?: IResourceRef;
     Alias?: string;
     PartitionAccountId?: string;
@@ -31,6 +33,7 @@ export class AccountResource extends Resource {
     public partitionAlias?: string;
     public tags?: Record<string, string>;
     public serviceControlPolicies?: Reference<ServiceControlPolicyResource>[];
+    public resourceControlPolicies?: Reference<ResourceControlPolicyResource>[];
     public passwordPolicy?: Reference<PasswordPolicyResource>;
     public organizationalUnitName?: string;
     public supportLevel?: string;
@@ -79,7 +82,7 @@ export class AccountResource extends Resource {
         this.organizationAccessRoleName = this.props.OrganizationAccessRoleName;
 
         super.throwForUnknownAttributes(resource, id, 'Type', 'Properties');
-        super.throwForUnknownAttributes(this.props, id, 'RootEmail', 'AccountName', 'AccountId', 'Alias', 'PartitionAlias', 'PartitionAccountId', 'ServiceControlPolicies', 'Tags', 'PasswordPolicy', 'SupportLevel', 'OrganizationAccessRoleName', 'BuildAccessRoleName');
+        super.throwForUnknownAttributes(this.props, id, 'RootEmail', 'AccountName', 'AccountId', 'Alias', 'PartitionAlias', 'PartitionAccountId', 'ServiceControlPolicies', 'ResourceControlPolicies', 'Tags', 'PasswordPolicy', 'SupportLevel', 'OrganizationAccessRoleName', 'BuildAccessRoleName');
     }
 
     public calculateHash(): string {
@@ -95,6 +98,7 @@ export class AccountResource extends Resource {
     public resolveRefs(): void {
         if (this.props) {
             this.serviceControlPolicies = super.resolve(this.props.ServiceControlPolicies, this.root.organizationSection.serviceControlPolicies);
+            this.resourceControlPolicies = super.resolve(this.props.ResourceControlPolicies, this.root.organizationSection.resourceControlPolicies);
             const passwordPolicies = super.resolve(this.props.PasswordPolicy, this.root.organizationSection.passwordPolicies);
             if (passwordPolicies.length !== 0) {
                 this.passwordPolicy = passwordPolicies[0];

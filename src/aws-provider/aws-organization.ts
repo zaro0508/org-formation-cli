@@ -7,6 +7,7 @@ export class AwsOrganization {
     public roots: AWSRoot[];
     public organizationalUnits: AWSOrganizationalUnit[];
     public policies: AWSPolicy[];
+    public resourceControlPolicies: AWSPolicy[];
     public accounts: AWSAccount[];
     public masterAccount: AWSAccount;
     public readonly reader: AwsOrganizationReader;
@@ -24,6 +25,7 @@ export class AwsOrganization {
         const setOrgPromise = async (): Promise<void> => { this.organization = await this.reader.organization.getValue(); };
         const setRootsPromise = async (): Promise<void> => { this.roots = await this.reader.roots.getValue(); };
         const setPolicies = async (): Promise<void> => { this.policies = await this.reader.policies.getValue(); };
+        const setResourceControlPolicies = async (): Promise<void> => { this.resourceControlPolicies = await this.reader.resourceControlPolicies.getValue(); };
         const setAccounts = async (): Promise<void> => {
             const accounts = await this.reader.accounts.getValue();
             this.masterAccount = accounts.find(x => x.Id === this.organization.MasterAccountId);
@@ -32,7 +34,7 @@ export class AwsOrganization {
         };
 
         try {
-            await Promise.all([setOrgPromise(), setRootsPromise(), setPolicies(), setAccounts()]);
+            await Promise.all([setOrgPromise(), setRootsPromise(), setPolicies(), setResourceControlPolicies(), setAccounts()]);
         } catch (err) {
             throw err;
         }

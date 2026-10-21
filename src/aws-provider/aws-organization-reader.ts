@@ -52,14 +52,18 @@ interface IObjectWithPolicies {
     Policies: AWSPolicy[];
 }
 
+interface IObjectWithResourceControlPolicies {
+    ResourceControlPolicies?: AWSPolicy[];
+}
+
 interface IPolicyTargets {
     Targets: Organizations.PolicyTargetSummary[];
 }
 
 export type AWSPolicy = Organizations.Policy & IPolicyTargets & IAWSObject;
-export type AWSAccount = Organizations.Account & IAWSAccountWithTags & IAWSAccountWithSupportLevel & IAWSAccountWithIAMAttributes & IObjectWithParentId & IObjectWithPolicies & IAWSObject & IAWSObjectWithPartition;
-export type AWSOrganizationalUnit = Organizations.OrganizationalUnit & IObjectWithParentId & IObjectWithPolicies & IObjectWithAccounts & IAWSObject & IObjectWitOrganizationalUnits & IAWSObjectWithPartition;
-export type AWSRoot = Organizations.Root & IObjectWithPolicies & IObjectWitOrganizationalUnits;
+export type AWSAccount = Organizations.Account & IAWSAccountWithTags & IAWSAccountWithSupportLevel & IAWSAccountWithIAMAttributes & IObjectWithParentId & IObjectWithPolicies & IObjectWithResourceControlPolicies & IAWSObject & IAWSObjectWithPartition;
+export type AWSOrganizationalUnit = Organizations.OrganizationalUnit & IObjectWithParentId & IObjectWithPolicies & IObjectWithResourceControlPolicies & IObjectWithAccounts & IAWSObject & IObjectWitOrganizationalUnits & IAWSObjectWithPartition;
+export type AWSRoot = Organizations.Root & IObjectWithPolicies & IObjectWithResourceControlPolicies & IObjectWitOrganizationalUnits;
 
 const GetPoliciesForTarget = (list: AWSPolicy[], targetId: string, targetType: Organizations.TargetType): AWSPolicy[] => {
     return list.filter(x => x.Targets.find(y => y.TargetId === targetId && y.Type === targetType));
@@ -78,11 +82,29 @@ export class AwsOrganizationReader {
     }
 
     private static async listPolicies(that: AwsOrganizationReader): Promise<AWSPolicy[]> {
+        return AwsOrganizationReader.listPoliciesByType(that, 'SERVICE_CONTROL_POLICY', 'Policy');
+    }
+
+    private static async listResourceControlPolicies(that: AwsOrganizationReader): Promise<AWSPolicy[]> {
+        try {
+            // RESOURCE_CONTROL_POLICY is not yet in this SDK version's PolicyType enum.
+            return await AwsOrganizationReader.listPoliciesByType(that, 'RESOURCE_CONTROL_POLICY' as Organizations.PolicyType, 'ResourceControlPolicy');
+        } catch (err) {
+            // Resource control policies may not be enabled/available in every organization or partition.
+            if (err && (err.name === 'PolicyTypeNotEnabledException' || err.name === 'UnsupportedAPIEndpointException')) {
+                ConsoleUtil.LogDebug(`unable to list resource control policies, treating as none: ${err}`);
+                return [];
+            }
+            throw err;
+        }
+    }
+
+    private static async listPoliciesByType(that: AwsOrganizationReader, filter: Organizations.PolicyType, objectType: AWSObjectType): Promise<AWSPolicy[]> {
         try {
             const result: AWSPolicy[] = [];
 
             const listPoliciesReq: Organizations.ListPoliciesCommandInput = {
-                Filter: 'SERVICE_CONTROL_POLICY',
+                Filter: filter,
             };
 
             let resp: Organizations.ListPoliciesCommandOutput;
@@ -99,7 +121,7 @@ export class AwsOrganizationReader {
 
                     const awsPolicy = {
                         ...describedPolicy.Policy,
-                        Type: 'Policy',
+                        Type: objectType,
                         Name: policy.Name,
                         Id: policy.Id,
                         Targets: [] as Organizations.PolicyTargetSummary[],
@@ -131,6 +153,7 @@ export class AwsOrganizationReader {
     public static async listRoots(that: AwsOrganizationReader): Promise<AWSRoot[]> {
         try {
             const policies: AWSPolicy[] = await that.policies.getValue();
+            const resourceControlPolicies: AWSPolicy[] = await that.resourceControlPolicies.getValue();
             const result: AWSRoot[] = [];
             let resp: Organizations.ListRootsCommandOutput;
             const req: Organizations.ListRootsCommandInput = {};
@@ -143,6 +166,7 @@ export class AwsOrganizationReader {
                     const item: AWSRoot = {
                         ...root,
                         Policies: GetPoliciesForTarget(policies, root.Id, 'ROOT'),
+                        ResourceControlPolicies: GetPoliciesForTarget(resourceControlPolicies, root.Id, 'ROOT'),
                         OrganizationalUnits: [],
                     };
                     result.push(item);
@@ -160,6 +184,7 @@ export class AwsOrganizationReader {
         try {
             const roots: AWSRoot[] = await that.roots.getValue();
             const policies: AWSPolicy[] = await that.policies.getValue();
+            const resourceControlPolicies: AWSPolicy[] = await that.resourceControlPolicies.getValue();
             const rootsIds: string[] = [];
             const result: AWSOrganizationalUnit[] = [];
             rootsIds.push(...roots.map(x => x.Id!));
@@ -185,6 +210,7 @@ export class AwsOrganizationReader {
                             ParentId: req.ParentId,
                             Accounts: [] as AWSAccount[],
                             Policies: GetPoliciesForTarget(policies, ou.Id, 'ORGANIZATIONAL_UNIT'),
+                            ResourceControlPolicies: GetPoliciesForTarget(resourceControlPolicies, ou.Id, 'ORGANIZATIONAL_UNIT'),
                             OrganizationalUnits: [],
                         };
 
@@ -221,6 +247,7 @@ export class AwsOrganizationReader {
         try {
             const roots: AWSRoot[] = await that.roots.getValue();
             const policies: AWSPolicy[] = await that.policies.getValue();
+            const resourceControlPolicies: AWSPolicy[] = await that.resourceControlPolicies.getValue();
             const organizationalUnits: AWSOrganizationalUnit[] = await that.organizationalUnits.getValue();
             const result: AWSAccount[] = [];
             const parentIds = organizationalUnits.map(x => x.Id);
@@ -272,6 +299,7 @@ export class AwsOrganizationReader {
                             Id: acc.Id,
                             ParentId: req.ParentId,
                             Policies: GetPoliciesForTarget(policies, acc.Id, 'ORGANIZATIONAL_UNIT'),
+                            ResourceControlPolicies: GetPoliciesForTarget(resourceControlPolicies, acc.Id, 'ORGANIZATIONAL_UNIT'),
                             Tags: tags,
                             Alias: alias,
                             PasswordPolicy: passwordPolicy,
@@ -378,6 +406,7 @@ export class AwsOrganizationReader {
     }
 
     public readonly policies: Lazy<AWSPolicy[]>;
+    public readonly resourceControlPolicies: Lazy<AWSPolicy[]>;
     public readonly accounts: Lazy<AWSAccount[]>;
     public readonly organizationalUnits: Lazy<AWSOrganizationalUnit[]>;
     public readonly organization: Lazy<Organizations.Organization>;
@@ -390,6 +419,7 @@ export class AwsOrganizationReader {
 
         this.organizationsService = organizationsService;
         this.policies = new Lazy(this, AwsOrganizationReader.listPolicies);
+        this.resourceControlPolicies = new Lazy(this, AwsOrganizationReader.listResourceControlPolicies);
         this.organizationalUnits = new Lazy(this, AwsOrganizationReader.listOrganizationalUnits);
         this.accounts = new Lazy(this, x=> AwsOrganizationReader.listAccounts(x, AwsOrganizationReader.excludeAccountIds));
         this.organization = new Lazy(this, AwsOrganizationReader.getOrganization);

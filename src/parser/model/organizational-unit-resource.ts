@@ -2,6 +2,7 @@ import { OrgFormationError } from '../../org-formation-error';
 import { IResource, IResourceRef, TemplateRoot } from '../parser';
 import { AccountResource } from './account-resource';
 import { Reference, Resource } from './resource';
+import { ResourceControlPolicyResource } from './resource-control-policy-resource';
 import { ServiceControlPolicyResource } from './service-control-policy-resource';
 
 export interface IOrganizationalUnitProperties {
@@ -9,6 +10,7 @@ export interface IOrganizationalUnitProperties {
     Accounts?: string[] | IResourceRef | IResourceRef[];
     OrganizationalUnits?: string[] | IResourceRef | IResourceRef[];
     ServiceControlPolicies?: IResourceRef | IResourceRef[];
+    ResourceControlPolicies?: IResourceRef | IResourceRef[];
 }
 
 export class OrganizationalUnitResource extends Resource {
@@ -16,6 +18,7 @@ export class OrganizationalUnitResource extends Resource {
     public accounts: Reference<AccountResource>[] = [];
     public organizationalUnits: Reference<OrganizationalUnitResource>[] = [];
     public serviceControlPolicies: Reference<ServiceControlPolicyResource>[] = [];
+    public resourceControlPolicies: Reference<ResourceControlPolicyResource>[] = [];
     public parentOULogicalName: string;
     private props: IOrganizationalUnitProperties;
 
@@ -37,7 +40,7 @@ export class OrganizationalUnitResource extends Resource {
         super.throwForNonRef(this.props.OrganizationalUnits, 'OrganizationalUnits');
         super.throwForNonRef(this.props.Accounts, 'Accounts');
         super.throwForUnknownAttributes(resource, id, 'Type', 'Properties');
-        super.throwForUnknownAttributes(this.props, id, 'OrganizationalUnitName', 'Accounts', 'ServiceControlPolicies', 'OrganizationalUnits');
+        super.throwForUnknownAttributes(this.props, id, 'OrganizationalUnitName', 'Accounts', 'ServiceControlPolicies', 'ResourceControlPolicies', 'OrganizationalUnits');
     }
 
     public resolveRefs(): void {
@@ -47,6 +50,7 @@ export class OrganizationalUnitResource extends Resource {
             child.TemplateResource.parentOULogicalName = this.logicalId;
         }
         this.serviceControlPolicies = super.resolve(this.props.ServiceControlPolicies, this.root.organizationSection.serviceControlPolicies);
+        this.resourceControlPolicies = super.resolve(this.props.ResourceControlPolicies, this.root.organizationSection.resourceControlPolicies);
         const referenceToSelf = this.organizationalUnits.find(x=>x.TemplateResource === this);
         if (referenceToSelf !== undefined) {
             throw new OrgFormationError(`organizational unit ${this.organizationalUnitName} has a reference to self on child OrganizationalUnits.`);

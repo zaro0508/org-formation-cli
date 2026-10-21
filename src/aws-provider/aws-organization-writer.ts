@@ -13,6 +13,7 @@ import { performAndRetryIfNeeded, sleep } from './util';
 import {
     AccountResource,
     OrganizationalUnitResource,
+    ResourceControlPolicyResource,
     ServiceControlPolicyResource,
 } from '~parser/model';
 
@@ -137,6 +138,130 @@ export class AwsOrganizationWriter {
     }
 
     public async deletePolicy(physicalId: string): Promise<void> {
+        return await performAndRetryIfNeeded(async () => {
+            const deletePolicyCommand = new Organizations.DeletePolicyCommand({
+                PolicyId: physicalId,
+            });
+            try {
+                await this.organizationsService.send(deletePolicyCommand);
+            } catch (err) {
+                if (err && err.name !== 'PolicyNotFoundException' && err.name !== 'PolicyInUseException') {
+                    // 'ConcurrentModificationException' ??
+                    throw err;
+                }
+            }
+        });
+    }
+
+    public async ensureRCPEnabled(): Promise<void> {
+        return await performAndRetryIfNeeded(async () => {
+            const org: Organizations.OrganizationsClient = this.organizationsService;
+
+            const enablePolicyTypeCommand = new Organizations.EnablePolicyTypeCommand({
+                RootId: this.organization.roots[0].Id!,
+                // RESOURCE_CONTROL_POLICY is not yet in this SDK version's PolicyType enum.
+                PolicyType: 'RESOURCE_CONTROL_POLICY' as Organizations.PolicyType,
+            });
+
+
+            try {
+                await org.send(enablePolicyTypeCommand);
+                ConsoleUtil.LogDebug('enabled resource control policies');
+            } catch (err) {
+                if (err && err.name === 'PolicyTypeAlreadyEnabledException') {
+                    // do nothing
+                } else {
+                    throw err;
+                }
+            }
+        });
+    }
+
+    public async createResourceControlPolicy(resource: ResourceControlPolicyResource): Promise<string> {
+        return await performAndRetryIfNeeded(async () => {
+            try {
+                const createPolicyCommand = new Organizations.CreatePolicyCommand({
+                    Name: resource.policyName,
+                    Description: resource.description!,
+                    // RESOURCE_CONTROL_POLICY is not yet in this SDK version's PolicyType enum.
+                    Type: 'RESOURCE_CONTROL_POLICY' as Organizations.PolicyType,
+                    Content: JSON.stringify(resource.policyDocument, null, 0),
+                });
+                const response = await this.organizationsService.send(createPolicyCommand);
+                const rcpId = response.Policy!.PolicySummary!.Id!;
+                ConsoleUtil.LogDebug(`RCP Created ${rcpId}`);
+                return rcpId;
+            } catch (err) {
+                if (err.name === 'DuplicatePolicyException') {
+                    const existingPolicy: AWSPolicy = this.organization.policies.find(x => x.Name === resource.policyName);
+                    const rcpId = existingPolicy!.Id;
+                    await this.updateResourceControlPolicy(resource, rcpId);
+                    ConsoleUtil.LogDebug(`RCP found ${rcpId}`);
+                    return rcpId;
+                }
+
+                throw err;
+            }
+        });
+    }
+
+    public async attachResourceControlPolicy(targetPhysicalId: string, policyPhysicalId: string): Promise<void> {
+        return await performAndRetryIfNeeded(async () => {
+            const org: Organizations.OrganizationsClient = this.organizationsService;
+            const attachPolicyCommand = new Organizations.AttachPolicyCommand({
+                PolicyId: policyPhysicalId,
+                TargetId: targetPhysicalId,
+            });
+            try {
+                try {
+                    await this.ensureRCPEnabled();
+                    await org.send(attachPolicyCommand);
+                } catch (err) {
+                    if (err && err.name === 'PolicyTypeNotEnabledException') {
+                        await this.ensureRCPEnabled();
+                        await org.send(attachPolicyCommand);
+                    } else {
+                        throw err;
+                    }
+                }
+            } catch (err) {
+                if (err && err.name !== 'DuplicatePolicyAttachmentException') {
+                    throw err;
+                }
+            }
+        });
+    }
+
+    public async detachResourceControlPolicy(targetPhysicalId: string, policyPhysicalId: string): Promise<void> {
+        return await performAndRetryIfNeeded(async () => {
+            const detachPolicyCommand = new Organizations.DetachPolicyCommand({
+                PolicyId: policyPhysicalId,
+                TargetId: targetPhysicalId,
+            });
+            try {
+                await this.organizationsService.send(detachPolicyCommand);
+            } catch (err) {
+                if (err && err.name !== 'PolicyNotAttachedException' && err.name !== 'PolicyNotFoundException') {
+                    // 'ConcurrentModificationException' ??
+                    throw err;
+                }
+            }
+        });
+    }
+
+    public async updateResourceControlPolicy(resource: ResourceControlPolicyResource, physicalId: string): Promise<void> {
+        return await performAndRetryIfNeeded(async () => {
+            const updatePolicyCommand = new Organizations.UpdatePolicyCommand({
+                PolicyId: physicalId,
+                Name: resource.policyName,
+                Description: resource.description,
+                Content: JSON.stringify(resource.policyDocument, null, 0),
+            });
+            await this.organizationsService.send(updatePolicyCommand);
+        });
+    }
+
+    public async deleteResourceControlPolicy(physicalId: string): Promise<void> {
         return await performAndRetryIfNeeded(async () => {
             const deletePolicyCommand = new Organizations.DeletePolicyCommand({
                 PolicyId: physicalId,

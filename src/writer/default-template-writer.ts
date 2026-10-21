@@ -177,6 +177,19 @@ export class DefaultTemplateWriter {
             });
         }
 
+        for (const rcp of (this.organizationModel.resourceControlPolicies ?? []).sort((a, b) => a.Name < b.Name ? -1 : 1)) {
+            if (rcp.PolicySummary && rcp.PolicySummary.AwsManaged) { continue; }
+            const policyResource = this.generateRCP(lines, rcp);
+            const partitionPolicy: AWSPolicy = this.partitionOrganizationModel?.resourceControlPolicies?.find(x => x.Name === rcp.Name);
+            bindings.push({
+                type: policyResource.type,
+                logicalId: policyResource.logicalName,
+                physicalId: rcp.Id,
+                lastCommittedHash: '',
+                partitionId: (partitionPolicy) ? partitionPolicy.Id : '',
+            });
+        }
+
         this.generateResource(lines);
 
         const template = lines.map(x => x.toString()).join('');
@@ -199,6 +212,9 @@ export class DefaultTemplateWriter {
                     break;
                 case OrgResourceTypes.ServiceControlPolicy:
                     foundResource = templateRoot.organizationSection.serviceControlPolicies.find(x => x.logicalId === binding.logicalId);
+                    break;
+                case OrgResourceTypes.ResourceControlPolicy:
+                    foundResource = templateRoot.organizationSection.resourceControlPolicies.find(x => x.logicalId === binding.logicalId);
                     break;
             }
             if (foundResource) {
@@ -249,6 +265,29 @@ export class DefaultTemplateWriter {
         };
     }
 
+    private generateRCP(lines: YamlLine[], policy: AWSPolicy): WriterResource {
+        const logicalName = this.logicalNames.getName(policy);
+
+        lines.push(new Line(logicalName, '', 2));
+        lines.push(new Line('Type', OrgResourceTypes.ResourceControlPolicy, 4));
+        lines.push(new Line('Properties', '', 4));
+        lines.push(new Line('PolicyName', policy.Name, 6));
+        if (policy.PolicySummary && policy.PolicySummary.Description) {
+            lines.push(new Line('Description', policy.PolicySummary.Description, 6));
+        } else {
+            lines.push(new Line('Description', '\'\'', 6));
+        }
+        if (policy.Content) {
+            lines.push(new ObjLine('PolicyDocument', JSON.parse(policy.Content), 6));
+        }
+        lines.push(new EmptyLine());
+
+        return {
+            type: OrgResourceTypes.ResourceControlPolicy,
+            logicalName,
+        };
+    }
+
     private generatePredefinedOU(lines: YamlLine[], predefined: IPredefinedOU, overrides: ITemplateGenerationSettings, preExistingOU?: AWSOrganizationalUnit): WriterResource {
         const logicalName = this.logicalNames.getForPredefined('OrganizationalUnit', predefined.id, predefined.logicalName);
 
@@ -259,10 +298,14 @@ export class DefaultTemplateWriter {
         lines.push(new Line('OrganizationalUnitName', preExistingOU?.Name ?? predefined.properties.OrganizationalUnitName, 6));
         if (preExistingOU) {
             const policiesList = preExistingOU.Policies.filter(x => !x.PolicySummary!.AwsManaged!).map(x => '!Ref ' + this.logicalNames.getName(x));
+            const rcpList = (preExistingOU.ResourceControlPolicies ?? []).filter(x => !x.PolicySummary!.AwsManaged!).map(x => '!Ref ' + this.logicalNames.getName(x));
             const accountList = preExistingOU.Accounts.map(x => '!Ref ' + this.logicalNames.getName(x));
             const childOUList = preExistingOU.OrganizationalUnits.map(x => '!Ref ' + this.logicalNames.getName(x));
 
             lines.push(new ListLine('ServiceControlPolicies', policiesList, 6));
+            if (rcpList.length > 0) {
+                lines.push(new ListLine('ResourceControlPolicies', rcpList, 6));
+            }
             lines.push(new ListLine('OrganizationalUnits', childOUList, 6));
             lines.push(new ListLine('Accounts', accountList, 6));
         } else {
@@ -314,6 +357,7 @@ export class DefaultTemplateWriter {
     private generateAccount(lines: YamlLine[], account: AWSAccount): WriterResource {
         const logicalName = this.logicalNames.getName(account);
         const policiesList = account.Policies.filter(x => !x.PolicySummary!.AwsManaged).map(x => '!Ref ' + this.logicalNames.getName(x));
+        const rcpList = (account.ResourceControlPolicies ?? []).filter(x => !x.PolicySummary!.AwsManaged).map(x => '!Ref ' + this.logicalNames.getName(x));
 
         lines.push(new Line(logicalName, '', 2));
         lines.push(new Line('Type', OrgResourceTypes.Account, 4));
@@ -344,6 +388,9 @@ export class DefaultTemplateWriter {
         }
 
         lines.push(new ListLine('ServiceControlPolicies', policiesList, 6));
+        if (rcpList.length > 0) {
+            lines.push(new ListLine('ResourceControlPolicies', rcpList, 6));
+        }
 
         lines.push(new EmptyLine());
 
@@ -356,6 +403,7 @@ export class DefaultTemplateWriter {
     private generateRoot(lines: YamlLine[], root: AWSRoot, masterAccount: AWSAccount): WriterResource {
         const logicalName = 'OrganizationRoot';
         const policiesList = root.Policies.filter(x => !x.PolicySummary!.AwsManaged).map(x => '!Ref ' + this.logicalNames.getName(x));
+        const rcpList = (root.ResourceControlPolicies ?? []).filter(x => !x.PolicySummary!.AwsManaged).map(x => '!Ref ' + this.logicalNames.getName(x));
 
         lines.push(new Line(logicalName, '', 2));
         lines.push(new Line('Type', OrgResourceTypes.OrganizationRoot, 4));
@@ -365,6 +413,9 @@ export class DefaultTemplateWriter {
             lines.push(new Line('DefaultBuildAccessRoleName', this.DefaultBuildProcessAccessRoleName, 6));
         }
         lines.push(new ListLine('ServiceControlPolicies', policiesList, 6));
+        if (rcpList.length > 0) {
+            lines.push(new ListLine('ResourceControlPolicies', rcpList, 6));
+        }
         if (masterAccount.PartitionId) {
             lines.push(new Line('MirrorInPartition', 'true', 6));
         }
@@ -379,6 +430,7 @@ export class DefaultTemplateWriter {
     private generateOrganizationalUnit(lines: YamlLine[], organizationalUnit: AWSOrganizationalUnit): WriterResource {
         const logicalName = this.logicalNames.getName(organizationalUnit);
         const policiesList = organizationalUnit.Policies.filter(x => !x.PolicySummary!.AwsManaged!).map(x => '!Ref ' + this.logicalNames.getName(x));
+        const rcpList = (organizationalUnit.ResourceControlPolicies ?? []).filter(x => !x.PolicySummary!.AwsManaged!).map(x => '!Ref ' + this.logicalNames.getName(x));
         const accountList = organizationalUnit.Accounts.map(x => '!Ref ' + this.logicalNames.getName(x));
         const childOUList = organizationalUnit.OrganizationalUnits.map(x => '!Ref ' + this.logicalNames.getName(x));
 
@@ -387,6 +439,9 @@ export class DefaultTemplateWriter {
         lines.push(new Line('Properties', '', 4));
         lines.push(new Line('OrganizationalUnitName', organizationalUnit.Name, 6));
         lines.push(new ListLine('ServiceControlPolicies', policiesList, 6));
+        if (rcpList.length > 0) {
+            lines.push(new ListLine('ResourceControlPolicies', rcpList, 6));
+        }
         lines.push(new ListLine('OrganizationalUnits', childOUList, 6));
         lines.push(new ListLine('Accounts', accountList, 6));
         lines.push(new EmptyLine());
@@ -399,6 +454,7 @@ export class DefaultTemplateWriter {
 
     private generateMasterAccount(lines: YamlLine[], masterAccount: AWSAccount): WriterResource {
         const policiesList = masterAccount.Policies.map(x => '!Ref ' + this.logicalNames.getName(x));
+        const rcpList = (masterAccount.ResourceControlPolicies ?? []).map(x => '!Ref ' + this.logicalNames.getName(x));
         const name = this.logicalNames.setName(masterAccount, 'ManagementAccount');
         lines.push(new Line('Organization', '', 0));
         lines.push(new Line(name, '', 2));
@@ -425,6 +481,9 @@ export class DefaultTemplateWriter {
             }
         }
         lines.push(new ListLine('ServiceControlPolicies', policiesList, 6));
+        if (rcpList.length > 0) {
+            lines.push(new ListLine('ResourceControlPolicies', rcpList, 6));
+        }
         lines.push(new EmptyLine());
 
         return {
@@ -513,6 +572,9 @@ class LogicalNames {
 
             case 'Policy':
                 return 'SCP';
+
+            case 'ResourceControlPolicy':
+                return 'RCP';
         }
 
         throw new OrgFormationError('not implemented');
